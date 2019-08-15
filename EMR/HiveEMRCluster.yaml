@@ -1,0 +1,117 @@
+Parameters:
+  ReleaseLabel:
+    Description: Enter EMR release version
+    Default: emr-5.26.0
+    Type: String
+  ClusterVpcId:
+    Description: Enter VPC Id
+    Type: AWS::EC2::VPC::Id
+  ClusterSubnetId:
+    Description: Enter Subnet Id
+    Type: AWS::EC2::Subnet::Id
+  MasterInstanceType:
+    Description: Specify master instance type
+    Type: String
+    Default: m3.xlarge
+    AllowedValues:
+      - m3.xlarge
+      - m4.large
+      - m5.xlarge
+  MasterKeyPair:
+    Description: Enter KeyPair name
+    Type: AWS::EC2::KeyPair::KeyName
+  TerminationProtection:
+    Description: Enable termination protection
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
+  UserLocalIp:
+    Description: Enter your IP address
+    Type: String
+Resources:
+  HiveEmrCluster:
+    Type: AWS::EMR::Cluster
+    Properties:
+      Name: Hive-EMR-Cluster
+      ReleaseLabel: !Ref ReleaseLabel
+      Applications:
+        - Name: Hadoop
+        - Name: Hive
+        - Name: Hue
+      Configurations:
+        - Classification: 'hive-site'
+          ConfigurationProperties: # use AWS Glue Data Catalog for metastore 
+            'hive.metastore.client.factory.class": "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory'
+      EbsRootVolumeSize: 10 # hard coded value
+      Instances:
+        AdditionalMasterSecurityGroups:
+          - !Ref AdditionalMasterecurityGroup
+        Ec2SubnetId: !Ref ClusterSubnetId
+        Ec2KeyName: !Ref MasterKeyPair
+        MasterInstanceGroup:
+          InstanceCount: 1
+          InstanceType: !Ref MasterInstanceType
+          EbsConfiguration:
+            EbsBlockDeviceConfigs:
+              - VolumeSpecification:
+                  SizeInGB: 32 # hard coded value
+                  VolumeType: gp2
+                VolumesPerInstance: 1
+            EbsOptimized: true
+          Market: ON_DEMAND
+          Name: MasterGroup
+        TerminationProtected: !Ref TerminationProtection
+      ServiceRole: !Ref EmrRole
+      JobFlowRole: !Ref EmrEc2InstanceProfile
+      LogUri: s3://vdymna-emr-logs/ # todo: make this a parameter
+      VisibleToAllUsers: true
+  EmrRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2008-10-17
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service: elasticmapreduce.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceRole'
+  EmrEc2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2008-10-17
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonElasticMapReduceforEC2Role'
+  EmrEc2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref EmrEc2Role
+  AdditionalMasterecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow port 22 access to master instance
+      VpcId: !Ref ClusterVpcId 
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref UserLocalIp
+Outputs:
+  ClusterDNS:
+    Description: The public DNS for the EMR instance
+    Value: !GetAtt HiveEmrCluster.MasterPublicDNS

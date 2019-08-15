@@ -1,0 +1,54 @@
+Parameters:
+  InputVpcId:
+    Description: Enter VPC Id
+    Type: AWS::EC2::VPC::Id
+  InputSubnetId:
+    Description: Enter Subnet Id
+    Type: AWS::EC2::Subnet::Id
+  InputKeyPair:
+    Description: Enter KeyPair name
+    Type: AWS::EC2::KeyPair::KeyName
+  InputLocalIp:
+    Description: Enter your IP address
+    Type: String
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-0b898040803850657
+    us-east-2:
+      AMI: ami-0d8f6eb4f641ef691
+    us-west-1:
+      AMI: ami-056ee704806822732
+    us-west-2:
+      AMI: ami-082b5a644766e0e6f
+Resources:
+  LinuxEC2Intance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: 
+        !FindInMap
+          - RegionMap
+          - !Ref AWS::Region
+          - AMI
+      SecurityGroupIds: 
+        - !Ref EC2SecurityGroup
+      SubnetId: !Ref InputSubnetId
+      Tags:
+        - Key: Name
+          Value: EC2 instance created by Cloud Formation
+      KeyName: !Ref InputKeyPair
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow traffic on port 22 and port 80
+      VpcId: !Ref InputVpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref InputLocalIp
+Outputs:
+  WebsiteDNS:
+    Description: The public DNS for the EC2 instance
+    Value: !Sub 'http://${LinuxEC2Intance.PublicDnsName}'
