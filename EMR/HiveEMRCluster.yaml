@@ -42,8 +42,8 @@ Resources:
         - Name: Hue
       Configurations:
         - Classification: 'hive-site'
-          ConfigurationProperties: # use AWS Glue Data Catalog for metastore 
-            'hive.metastore.client.factory.class": "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory'
+          ConfigurationProperties:
+            hive.metastore.client.factory.class: 'com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory' # use AWS Glue Data Catalog for metastore 
       EbsRootVolumeSize: 10 # hard coded value
       Instances:
         AdditionalMasterSecurityGroups:
